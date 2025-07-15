@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - E-Store{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Edit Profile Section -->
+        <div class="card mb-2" style="margin-bottom:0.5rem !important; height:auto !important; min-height:unset !important;">
+            <div class="card-header py-1">
+                <h6 class="mb-0">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </h6>
+            </div>
+            <div class="card-body p-1" style="padding-bottom:1rem !important;">
+                <form method="POST" style="margin-bottom:0 !important;">
+                    <div class="row g-1">
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label small mb-1">First Name *</label>
+                            <input type="text" class="form-control form-control-sm" id="first_name" name="first_name" 
+                                   value="{{ current_user.first_name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label small mb-1">Last Name *</label>
+                            <input type="text" class="form-control form-control-sm" id="last_name" name="last_name" 
+                                   value="{{ current_user.last_name }}" required>
+                        </div>
+                    </div>
+                    <div class="row g-1 mt-1">
+                        <div class="col-md-6">
+                            <label for="email" class="form-label small mb-1">Email Address *</label>
+                            <input type="email" class="form-control form-control-sm" id="email" name="email" 
+                                   value="{{ current_user.email }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone_number" class="form-label small mb-1">Phone Number</label>
+                            <input type="tel" class="form-control form-control-sm" id="phone_number" name="phone_number" 
+                                   value="{{ current_user.phone_number or '' }}" placeholder="(555) 123-4567">
+                        </div>
+                    </div>
+                    <div class="mt-0 mb-0">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-save"></i> Update Profile
+                        </button>
+                        <a href="{{ url_for('profile') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Change Password Section -->
+        <div class="card">
+            <div class="card-header py-1">
+                <h6 class="mb-0">
+                    <i class="fas fa-lock"></i> Change Password
+                </h6>
+            </div>
+            <div class="card-body p-2">
+                <form method="POST" action="{{ url_for('change_password') }}">
+                    <div class="row g-1">
+                        <div class="col-md-4">
+                            <label for="current_password" class="form-label small mb-1">Current Password *</label>
+                            <input type="password" class="form-control form-control-sm" id="current_password" 
+                                   name="current_password" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="new_password" class="form-label small mb-1">New Password *</label>
+                            <input type="password" class="form-control form-control-sm" id="new_password" 
+                                   name="new_password" required>
+                            <small class="form-text">Min 6 characters</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="confirm_password" class="form-label small mb-1">Confirm Password *</label>
+                            <input type="password" class="form-control form-control-sm" id="confirm_password" 
+                                   name="confirm_password" required>
+                        </div>
+                    </div>
+                    <div class="mt-1">
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            <i class="fas fa-key"></i> Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Password confirmation validation
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    function validatePassword() {
+        if (newPassword.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity('Passwords do not match');
+        } else {
+            confirmPassword.setCustomValidity('');
+        }
+    }
+    
+    newPassword.addEventListener('change', validatePassword);
+    confirmPassword.addEventListener('keyup', validatePassword);
+    
+    // Password strength validation
+    newPassword.addEventListener('input', function() {
+        if (this.value.length < 6) {
+            this.setCustomValidity('Password must be at least 6 characters long');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+});
+</script>
+{% endblock %} 

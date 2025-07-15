@@ -1,0 +1,174 @@
+
+{% extends "base.html" %}
+
+{% block title %}My Orders - E-Store{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-shopping-bag"></i> My Orders
+        </h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if orders %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Order History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Recipient</th>
+                                <th>Date</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <strong>{{ order.recipient_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">#{{ order.order_number }}</small>
+                                </td>
+                                <td>
+                                    {{ order.created_at.strftime('%B %d, %Y') }}
+                                    <br>
+                                    <small class="text-muted">{{ order.created_at.strftime('%I:%M %p') }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ order.items.count() }} items</span>
+                                </td>
+                                <td>
+                                    <strong class="text-primary">Rs. {{ "%.2f"|format(order.total_amount) }}</strong>
+                                </td>
+                                <td>
+                                    {% if order.status == 'delivered' %}
+                                        <span class="badge bg-success">Delivered</span>
+                                    {% elif order.status == 'processing' %}
+                                        <span class="badge bg-warning">Processing</span>
+                                    {% elif order.status == 'shipped' %}
+                                        <span class="badge bg-info">Shipped</span>
+                                    {% elif order.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="#" class="btn btn-sm btn-outline-primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-sm btn-outline-secondary" title="Download Invoice">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% if order.status == 'completed' %}
+                                        <a href="#" class="btn btn-sm btn-outline-success" title="Write Review">
+                                            <i class="fas fa-star"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Empty Orders State -->
+        <div class="text-center py-5">
+            <i class="fas fa-shopping-bag fa-4x text-muted mb-4"></i>
+            <h3>No orders yet</h3>
+            <p class="text-muted mb-4">Looks like you haven't placed any orders yet. Start shopping to see your order history here.</p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('products') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-store"></i> Start Shopping
+                </a>
+                <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-user"></i> Back to Profile
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Order Statistics -->
+{% if orders %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ orders|length }}</h3>
+                <p class="text-muted mb-0">Total Orders</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ orders|selectattr('status', 'equalto', 'delivered')|list|length }}</h3>
+                <p class="text-muted mb-0">Delivered</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-warning">{{ orders|selectattr('status', 'equalto', 'pending')|list|length }}</h3>
+                <p class="text-muted mb-0">Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ orders|selectattr('status', 'equalto', 'shipped')|list|length }}</h3>
+                <p class="text-muted mb-0">Shipped</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('products') }}" class="btn btn-primary">
+                        <i class="fas fa-store"></i> Continue Shopping
+                    </a>
+                    <a href="{{ url_for('cart') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-shopping-cart"></i> View Cart
+                    </a>
+                    <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-user"></i> My Profile
+                    </a>
+                    <a href="#" class="btn btn-outline-info">
+                        <i class="fas fa-headset"></i> Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

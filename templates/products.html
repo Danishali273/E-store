@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Products - E-Store{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+    <!-- Mobile Category Filter Sidebar -->
+    <div class="category-filter-sidebar d-md-none" id="categoryFilterSidebar">
+        <button type="button" class="category-filter-close" onclick="toggleCategoryFilter()">
+            <i class="fas fa-times"></i>
+        </button>
+        <h4 class="category-filter-title">Categories</h4>
+        <div class="list-group">
+            <a href="{{ url_for('products') }}" 
+               class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                All Categories
+            </a>
+            {% for category in categories %}
+            <a href="{{ url_for('products', category=category.category_id) }}" 
+               class="list-group-item list-group-item-action {% if selected_category == category.category_id %}active{% endif %}">
+                {{ category.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="category-filter-overlay d-md-none" id="categoryFilterOverlay" onclick="toggleCategoryFilter()"></div>
+
+    <div class="row">
+            
+            <!-- Search and Filter Bar -->
+            <!-- Search Bar and Responsive Filter Row -->
+            <div class="search-and-filter-bar mb-4">
+                <div class="row g-2 align-items-center">
+                    <div class="col-12 col-md-6 mb-2 mb-md-0">
+                        <form onsubmit="searchProducts(); return false;">
+                            <div class="input-group search-bar">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search products..." value="{{ search_term or '' }}">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                    <span class="d-none d-sm-inline ms-1">Search</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
+                        <!-- Category Filter (below search bar, responsive) -->
+                        <div class="category-filter-dropdown">
+                            <select class="form-select" id="categorySelect" onchange="applyCategoryFilter()">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.category_id }}" {% if selected_category == category.category_id %}selected{% endif %}>{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- Price/Sort Filter -->
+                        <div class="sort-container">
+                            <select class="form-select" id="sortSelect" onchange="applyFilters()">
+                                <option value="" {% if not sort_by %}selected{% endif %}>Sort by...</option>
+                                <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                                <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Name (Z-A)</option>
+                                <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price (Low to High)</option>
+                                <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price (High to Low)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div class="products-grid">
+                {% for product in products %}
+                <div class="product-card card h-100">
+                    <img src="{{ product.image_url or 'https://via.placeholder.com/300x300?text=Product' }}" 
+                         class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text text-muted">{{ product.description[:100] }}{% if product.description|length > 100 %}...{% endif %}</p>
+                        <div class="mt-auto">
+                            <p class="price mb-2">${{ "%.2f"|format(product.price) }}</p>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('product_detail', product_id=product.product_id) }}" 
+                                   class="btn btn-outline-primary">View Details</a>
+                                {% if current_user.is_authenticated %}
+                                <button class="btn btn-primary add-to-cart" 
+                                        data-product-id="{{ product.product_id }}"
+                                        data-quantity="1">
+                                    <i class="fas fa-cart-plus"></i> Add to Cart
+                                </button>
+                                {% else %}
+                                <a href="{{ url_for('login') }}" class="btn btn-primary">
+                                    <i class="fas fa-sign-in-alt"></i> Login to Buy
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if not products %}
+            <div class="text-center py-5">
+                <h3>No products found</h3>
+                <p>Try adjusting your search or filters</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCategoryFilter() {
+    const sidebar = document.getElementById('categoryFilterSidebar');
+    const overlay = document.getElementById('categoryFilterOverlay');
+    
+    sidebar.classList.toggle('show');
+    overlay.classList.toggle('show');
+    
+    // Prevent body scrolling when sidebar is open
+    document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+}
+
+// Close category filter when clicking outside
+document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('categoryFilterSidebar');
+    const toggleBtn = document.querySelector('.filter-toggle-btn');
+    
+    if (sidebar.classList.contains('show') && 
+        !sidebar.contains(event.target) && 
+        !toggleBtn.contains(event.target)) {
+        toggleCategoryFilter();
+    }
+});
+
+// Prevent clicks inside sidebar from closing it
+document.getElementById('categoryFilterSidebar').addEventListener('click', function(event) {
+    event.stopPropagation();
+});
+
+// Search products function
+function searchProducts() {
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    const currentUrl = new URL(window.location.href);
+    
+    if (searchTerm) {
+        currentUrl.searchParams.set('search', searchTerm);
+    } else {
+        currentUrl.searchParams.delete('search');
+    }
+    
+    window.location.href = currentUrl.toString();
+}
+
+// Apply filters function
+function applyFilters() {
+    const sortBy = document.getElementById('sortSelect').value;
+    const currentUrl = new URL(window.location.href);
+    if (sortBy) {
+        currentUrl.searchParams.set('sort', sortBy);
+    } else {
+        currentUrl.searchParams.delete('sort');
+    }
+    window.location.href = currentUrl.toString();
+}
+// Apply category filter function
+function applyCategoryFilter() {
+    const categoryId = document.getElementById('categorySelect').value;
+    const currentUrl = new URL(window.location.href);
+    if (categoryId) {
+        currentUrl.searchParams.set('category', categoryId);
+    } else {
+        currentUrl.searchParams.delete('category');
+    }
+    window.location.href = currentUrl.toString();
+}
+</script>
+{% endblock %} 

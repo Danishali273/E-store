@@ -1,0 +1,214 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Add Product - Admin Panel{% endblock %}
+{% block page_title %}Add New Product{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus"></i> Product Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Product Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sku" class="form-label">SKU *</label>
+                            <input type="text" class="form-control" id="sku" name="sku" required>
+                            <div class="form-text">Stock Keeping Unit - must be unique</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="category_id" class="form-label">Category *</label>
+                            <select class="form-select" id="category_id" name="category_id" required>
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.category_id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="price" class="form-label">Price *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control" id="price" name="price" 
+                                       step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="stock_quantity" class="form-label">Stock Quantity</label>
+                            <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" 
+                                   min="0" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Product Images</label>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label for="image_upload" class="form-label">Upload Images</label>
+                                <input type="file" class="form-control" id="image_upload" name="image_upload" accept="image/*" multiple required>
+                                <div class="form-text">You can select multiple images. Select one as the main image. Supported formats: PNG, JPG, JPEG, GIF, WEBP (Max 5MB each)</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <label class="form-label">Image Previews</label>
+                                <div id="imagePreview" class="d-flex flex-wrap gap-2 bg-light rounded p-2" style="min-height: 120px; border: 2px dashed #dee2e6;">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                </div>
+                                <small class="text-muted mt-2 d-block">Select the main image using the radio button below each preview</small>
+                            </div>
+                        </div>
+                        <input type="hidden" id="main_image_index" name="main_image_index" value="0">
+                        <div class="mt-2">
+                            <span id="uploadStatus" class="ms-2"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                            <label class="form-check-label" for="is_active">
+                                Active Product
+                            </label>
+                            <div class="form-text">Inactive products won't be visible to customers</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Product
+                        </button>
+                        <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Tips
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Use descriptive product names
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        SKU should be unique and meaningful
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Include detailed descriptions
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Use high-quality product images
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Set accurate stock quantities
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-image"></i> Image Preview
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div id="imagePreview" class="bg-light rounded d-flex align-items-center justify-content-center" 
+                     style="width: 100%; height: 200px;">
+                    <i class="fas fa-image fa-3x text-muted"></i>
+                </div>
+                <small class="text-muted mt-2 d-block">Image preview will appear here</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadInput = document.getElementById('image_upload');
+    const preview = document.getElementById('imagePreview');
+    const mainImageIndexInput = document.getElementById('main_image_index');
+    uploadInput.addEventListener('change', function() {
+        preview.innerHTML = '';
+        const files = Array.from(this.files);
+        if (files.length === 0) {
+            preview.innerHTML = '<i class="fas fa-image fa-3x text-muted"></i>';
+            mainImageIndexInput.value = 0;
+            return;
+        }
+        files.forEach((file, idx) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'd-flex flex-column align-items-center me-2 mb-2';
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Preview';
+                img.style.maxWidth = '100px';
+                img.style.maxHeight = '100px';
+                img.style.objectFit = 'contain';
+                img.className = 'border rounded mb-1';
+                // Radio button for main image selection
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'main_image_radio';
+                radio.value = idx;
+                radio.className = 'form-check-input';
+                radio.style.marginTop = '0.5rem';
+                if (idx === 0) radio.checked = true;
+                radio.addEventListener('change', function() {
+                    mainImageIndexInput.value = this.value;
+                });
+                const label = document.createElement('label');
+                label.className = 'form-check-label small';
+                label.textContent = 'Main';
+                label.style.marginLeft = '0.25rem';
+                const radioWrapper = document.createElement('div');
+                radioWrapper.className = 'd-flex align-items-center';
+                radioWrapper.appendChild(radio);
+                radioWrapper.appendChild(label);
+                wrapper.appendChild(img);
+                wrapper.appendChild(radioWrapper);
+                preview.appendChild(wrapper);
+            };
+            reader.readAsDataURL(file);
+        });
+        mainImageIndexInput.value = 0;
+    });
+});
+</script>
+{% endblock %} 

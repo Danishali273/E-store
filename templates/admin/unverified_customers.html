@@ -1,0 +1,140 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Unverified Customers - Admin Panel{% endblock %}
+{% block page_title %}Unverified Customers{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Unverified Customers</h2>
+    <div class="text-muted">
+        <small>Customers who haven't verified their email</small>
+    </div>
+</div>
+
+<div class="alert alert-warning" role="alert">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Note:</strong> These customers have registered but haven't completed email verification. 
+    They cannot place orders until they verify their email address.
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if customers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="d-none d-lg-table-cell">ID</th>
+                        <th>Name</th>
+                        <th class="d-none d-md-table-cell">Email</th>
+                        <th class="d-none d-lg-table-cell">Phone</th>
+                        <th class="d-none d-md-table-cell">Status</th>
+                        <th class="d-none d-lg-table-cell">Verification</th>
+                        <th class="d-none d-lg-table-cell">Registered</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td class="d-none d-lg-table-cell">
+                            <span class="badge bg-secondary">{{ customer.customer_id }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                            <div class="d-md-none">
+                                <small class="text-muted d-block">
+                                    <a href="mailto:{{ customer.email }}" class="text-decoration-none">
+                                        {{ customer.email }}
+                                    </a>
+                                </small>
+                                {% if customer.phone_number %}
+                                <small class="text-muted d-block">
+                                    <a href="tel:{{ customer.phone_number }}" class="text-decoration-none">
+                                        {{ customer.phone_number }}
+                                    </a>
+                                </small>
+                                {% endif %}
+                                <div class="mt-1">
+                                    <span class="badge bg-warning me-1">Unverified</span>
+                                    <span class="badge bg-{{ 'success' if customer.is_active else 'secondary' }}">
+                                        {{ 'Active' if customer.is_active else 'Inactive' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <a href="mailto:{{ customer.email }}" class="text-decoration-none">
+                                {{ customer.email }}
+                            </a>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            {% if customer.phone_number %}
+                                <a href="tel:{{ customer.phone_number }}" class="text-decoration-none">
+                                    {{ customer.phone_number }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <span class="badge bg-{{ 'success' if customer.is_active else 'secondary' }}">
+                                {{ 'Active' if customer.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <span class="badge bg-warning">
+                                <i class="fas fa-clock"></i> Pending
+                            </span>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <small class="text-muted">{{ customer.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+            <h4>No unverified customers</h4>
+            <p class="text-muted mb-4">All registered customers have verified their email addresses.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="text-warning">{{ customers|length }}</h3>
+                <p class="text-muted mb-0">Unverified Customers</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="text-info">{{ customers|selectattr('is_active')|list|length }}</h3>
+                <p class="text-muted mb-0">Active Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h3 class="text-secondary">{{ customers|length }}</h3>
+                <p class="text-muted mb-0">Cannot Order</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('admin_customers') }}" class="btn btn-primary">
+        <i class="fas fa-users"></i> View Verified Customers
+    </a>
+</div>
+{% endblock %} 

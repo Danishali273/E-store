@@ -1,0 +1,299 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Edit Product - Admin Panel{% endblock %}
+{% block page_title %}Edit Product{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit"></i> Edit Product Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Product Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ form_data.get('name', product.name) if form_data else product.name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sku" class="form-label">SKU *</label>
+                            <input type="text" class="form-control" id="sku" name="sku" 
+                                   value="{{ form_data.get('sku', product.sku) if form_data else product.sku }}" required>
+                            <div class="form-text">Stock Keeping Unit - must be unique</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="category_id" class="form-label">Category *</label>
+                            <select class="form-select" id="category_id" name="category_id" required>
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.category_id }}" {% if (form_data and form_data.get('category_id', product.category_id)|int == category.category_id) or (not form_data and product.category_id == category.category_id) %}selected{% endif %}>{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ form_data.get('description', product.description) if form_data else product.description }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="price" class="form-label">Price *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control" id="price" name="price" 
+                                       step="0.01" min="0" value="{{ form_data.get('price', product.price) if form_data else product.price }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="stock_quantity" class="form-label">Stock Quantity</label>
+                            <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" 
+                                   min="0" value="{{ form_data.get('stock_quantity', product.stock_quantity) if form_data else product.stock_quantity }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Product Images</label>
+                        <div class="row mb-2">
+                            <div class="col-12">
+                                <label class="form-label">Current & New Images</label>
+                                <div id="currentImages" class="d-flex flex-wrap gap-2 bg-light rounded p-2" style="min-height: 120px; border: 2px dashed #dee2e6;">
+                                    {% for image in product.images %}
+                                    <div class="d-flex flex-column align-items-center me-2 mb-2 image-block" data-image-id="{{ image.image_id }}" data-existing="1">
+                                        <img src="{{ image.image_url }}" alt="Product Image" style="max-width: 100px; max-height: 100px; object-fit: contain;" class="border rounded mb-1">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <input type="radio" name="main_image_id" value="{{ image.image_id }}" class="form-check-input main-radio" {% if image.is_main %}checked{% endif %}>
+                                            <label class="form-check-label small ms-1">Main</label>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm delete-btn" onclick="deleteImage(this)" data-image-id="{{ image.image_id }}" data-existing="1">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <input type="hidden" id="deleted_images" name="deleted_images" value="">
+                                {% set main_image = (product.images|selectattr('is_main')|first) %}
+                                <input type="hidden" id="main_image_id" name="main_image_id" value="{{ main_image.image_id if main_image else '' }}">
+                                <small class="text-muted mt-2 d-block">Select the main image and delete unwanted images. New images will appear here as you select them.</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label for="image_upload" class="form-label">Upload More Images</label>
+                                <input type="file" class="form-control" id="image_upload" name="image_upload" accept="image/*" multiple>
+                                <div class="form-text">You can add more images. Supported formats: PNG, JPG, JPEG, GIF, WEBP (Max 5MB each)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                   {{ 'checked' if (form_data and 'is_active' in form_data) or (not form_data and product.is_active) else '' }}>
+                            <label class="form-check-label" for="is_active">
+                                Active Product
+                            </label>
+                            <div class="form-text">Inactive products won't be visible to customers</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Product
+                        </button>
+                        <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Product Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Product ID</dt>
+                    <dd class="col-sm-8">{{ product.product_id }}</dd>
+                    
+                    <dt class="col-sm-4">Created</dt>
+                    <dd class="col-sm-8">{{ product.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                    
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-{{ 'success' if product.is_active else 'secondary' }}">
+                            {{ 'Active' if product.is_active else 'Inactive' }}
+                        </span>
+                    </dd>
+                    
+                    <dt class="col-sm-4">Stock</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-{{ 'success' if product.stock_quantity > 0 else 'danger' }}">
+                            {{ product.stock_quantity }}
+                        </span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Danger Zone
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Once you delete a product, there is no going back. Please be certain.</p>
+                <button type="button" class="btn btn-danger btn-sm" 
+                        onclick="deleteProduct('{{ product.product_id }}', '{{ product.name }}')">
+                    <i class="fas fa-trash"></i> Delete Product
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the product "<strong id="productName"></strong>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Product</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadInput = document.getElementById('image_upload');
+    const currentImages = document.getElementById('currentImages');
+    const deletedImagesInput = document.getElementById('deleted_images');
+    const mainImageIdInput = document.getElementById('main_image_id');
+    let newImageId = 0;
+    let newImages = [];
+
+    // Handle new uploads and preview
+    uploadInput.addEventListener('change', function() {
+        Array.from(this.files).forEach((file, idx) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'd-flex flex-column align-items-center me-2 mb-2 image-block';
+                wrapper.dataset.imageId = 'new_' + newImageId;
+                wrapper.dataset.existing = '0';
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Preview';
+                img.style.maxWidth = '100px';
+                img.style.maxHeight = '100px';
+                img.style.objectFit = 'contain';
+                img.className = 'border rounded mb-1';
+                // Radio for main image
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'main_image_id';
+                radio.value = 'new_' + newImageId;
+                radio.className = 'form-check-input main-radio';
+                radio.style.marginTop = '0.5rem';
+                radio.addEventListener('change', function() {
+                    mainImageIdInput.value = this.value;
+                });
+                const label = document.createElement('label');
+                label.className = 'form-check-label small';
+                label.textContent = 'Main';
+                label.style.marginLeft = '0.25rem';
+                const radioWrapper = document.createElement('div');
+                radioWrapper.className = 'd-flex align-items-center mb-1';
+                radioWrapper.appendChild(radio);
+                radioWrapper.appendChild(label);
+                // Delete button
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'btn btn-outline-danger btn-sm delete-btn';
+                delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                delBtn.onclick = function() { deleteImage(delBtn); };
+                delBtn.dataset.imageId = 'new_' + newImageId;
+                delBtn.dataset.existing = '0';
+                // Compose
+                wrapper.appendChild(img);
+                wrapper.appendChild(radioWrapper);
+                wrapper.appendChild(delBtn);
+                currentImages.appendChild(wrapper);
+                // If this is the first new image and no main is selected, select it
+                if (!document.querySelector('.main-radio:checked')) {
+                    radio.checked = true;
+                    mainImageIdInput.value = radio.value;
+                }
+                newImageId++;
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // Main image selection for existing images
+    currentImages.addEventListener('change', function(e) {
+        if (e.target.classList.contains('main-radio')) {
+            mainImageIdInput.value = e.target.value;
+        }
+    });
+});
+
+function deleteImage(btn) {
+    const block = btn.closest('.image-block');
+    if (block.dataset.existing === '1') {
+        // Mark for deletion
+        let deleted = document.getElementById('deleted_images').value;
+        let arr = deleted ? deleted.split(',') : [];
+        if (!arr.includes(block.dataset.imageId)) {
+            arr.push(block.dataset.imageId);
+            document.getElementById('deleted_images').value = arr.join(',');
+        }
+    }
+    // If this was the main image, clear main selection
+    if (block.querySelector('.main-radio').checked) {
+        document.getElementById('main_image_id').value = '';
+    }
+    block.remove();
+    // If no main image is selected, select the first available
+    const radios = document.querySelectorAll('.main-radio');
+    if (!document.querySelector('.main-radio:checked') && radios.length > 0) {
+        radios[0].checked = true;
+        document.getElementById('main_image_id').value = radios[0].value;
+    }
+}
+
+function deleteProduct(productId, productName) {
+    document.getElementById('productName').textContent = productName;
+    document.getElementById('deleteForm').action = `/admin/products/delete/${productId}`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %} 

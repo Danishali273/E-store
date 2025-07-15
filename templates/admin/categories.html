@@ -1,0 +1,103 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Categories - Admin Panel{% endblock %}
+{% block page_title %}Categories{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Category Management</h2>
+    <a href="{{ url_for('admin_add_category') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add New Category
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if categories %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="d-none d-md-table-cell">ID</th>
+                        <th>Name</th>
+                        <th class="d-none d-lg-table-cell">Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in categories %}
+                    <tr>
+                        <td class="d-none d-md-table-cell">
+                            <span class="badge bg-secondary">{{ category.category_id }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ category.name }}</strong>
+                            <div class="d-lg-none">
+                                <small class="text-muted">{{ category.description or 'No description' }}</small>
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <span class="text-muted">{{ category.description or 'No description' }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('admin_edit_category', category_id=category.category_id) }}" 
+                                   class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                        onclick="deleteCategory('{{ category.category_id }}', '{{ category.name }}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-tags fa-4x text-muted mb-4"></i>
+            <h4>No categories found</h4>
+            <p class="text-muted mb-4">Create categories to organize your products.</p>
+            <a href="{{ url_for('admin_add_category') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus"></i> Add Your First Category
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the category "<strong id="categoryName"></strong>"?</p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Category</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteCategory(categoryId, categoryName) {
+    document.getElementById('categoryName').textContent = categoryName;
+    document.getElementById('deleteForm').action = `/admin/categories/delete/${categoryId}`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %} 

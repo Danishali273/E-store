@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - E-Store{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="row">
+        <!-- Product Image and Thumbnails -->
+        <div class="col-md-5 text-center mb-4">
+          <div class="product-image-container mb-3">
+            {% set main_image = (product.images|selectattr('is_main')|first) or (product.images|first) %}
+            <img src="{{ main_image.image_url if main_image else (product.image_url or 'https://via.placeholder.com/500x500?text=Product') }}" 
+                 class="img-fluid rounded" alt="{{ product.name }}" id="mainImage">
+          </div>
+          <div class="row justify-content-center g-2">
+            {% for image in product.images %}
+            <div class="col-3">
+              <img src="{{ image.image_url }}" 
+                   class="img-thumbnail thumbnail-img" alt="Thumbnail {{ loop.index }}" onclick="changeImage(this.src)">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <!-- Product Details, Add to Cart, Reviews -->
+        <div class="col-md-7 d-flex flex-column align-items-start" style="max-width:500px;">
+          <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+              <li class="breadcrumb-item"><a href="{{ url_for('products') }}">Products</a></li>
+              <li class="breadcrumb-item active">{{ product.name }}</li>
+            </ol>
+          </nav>
+          <h1 class="mb-3">{{ product.name }}</h1>
+          <div class="mb-3">
+            <span class="h3 text-primary">${{ "%.2f"|format(product.price) }}</span>
+            {% if product.stock_quantity > 0 %}
+              <span class="badge bg-success ms-2">In Stock ({{ product.stock_quantity }} available)</span>
+            {% else %}
+              <span class="badge bg-danger ms-2">Out of Stock</span>
+            {% endif %}
+          </div>
+          <div class="mb-4">
+            <h5>Description</h5>
+            <p class="text-muted">{{ product.description or 'No description available.' }}</p>
+          </div>
+          <div class="mb-4">
+            <h5>Product Details</h5>
+            <ul class="list-unstyled">
+              <li><strong>SKU:</strong> {{ product.sku }}</li>
+              <li><strong>Category:</strong> 
+                {% if product.category %}
+                  <span class="badge bg-secondary">{{ product.category.name }}</span>
+                {% else %}
+                  <span class="text-muted">Uncategorized</span>
+                {% endif %}
+              </li>
+              <li><strong>Added:</strong> {{ product.created_at.strftime('%B %d, %Y') }}</li>
+            </ul>
+          </div>
+          <!-- Add to Cart + Reviews in a single compact card -->
+          <div class="card w-100 compact-card mb-3">
+            <div class="card-body p-3">
+              <!-- Add to Cart Section -->
+              {% if current_user.is_authenticated %}
+                {% if product.stock_quantity > 0 %}
+                <h6 class="card-title mb-2">Add to Cart</h6>
+                <form id="addToCartForm" onsubmit="return false;"> {# onsubmit prevents accidental submission #}
+                  <div class="row g-2 align-items-end">
+                    <div class="col-4">
+                      <label for="quantity" class="form-label small mb-1">Qty</label>
+                      <input type="number" class="form-control form-control-sm" id="quantity" name="quantity" 
+                             value="1" min="1" max="{{ product.stock_quantity }}">
+                    </div>
+                    <div class="col-8">
+                      <button type="button" class="btn btn-primary w-100 add-to-cart"
+                              data-product-id="{{ product.product_id }}">
+                        <i class="fas fa-cart-plus"></i> Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                </form>
+                {% else %}
+                <div class="alert alert-warning py-2 mb-2">
+                  <i class="fas fa-exclamation-triangle"></i> Out of stock.
+                </div>
+                {% endif %}
+              {% else %}
+              <div class="alert alert-info py-2 mb-2">
+                <i class="fas fa-info-circle"></i> <a href="{{ url_for('login') }}" class="alert-link">Login</a> to add to cart.
+              </div>
+              {% endif %}
+              <!-- Product Actions -->
+              <div class="d-flex gap-2 mb-2 mt-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="addToWishlist()">
+                  <i class="fas fa-heart"></i> Wishlist
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="shareProduct()">
+                  <i class="fas fa-share"></i> Share
+                </button>
+              </div>
+              <hr class="my-2">
+              <!-- Reviews Section -->
+              <div>
+                <h6 class="mb-2"><i class="fas fa-star"></i> Customer Reviews</h6>
+                <div class="text-center py-2">
+                  <div class="mb-1">
+                    <i class="fas fa-star fa-sm text-warning"></i>
+                    <i class="fas fa-star fa-sm text-warning"></i>
+                    <i class="fas fa-star fa-sm text-warning"></i>
+                    <i class="fas fa-star fa-sm text-warning"></i>
+                    <i class="fas fa-star fa-sm text-muted"></i>
+                  </div>
+                  <h6 class="mb-1">No reviews yet</h6>
+                  <p class="text-muted small mb-1">Be the first to review this product!</p>
+                  <button class="btn btn-outline-primary btn-sm">Write a Review</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Related Products Section -->
+      <div class="related-products-section mt-5">
+        <div class="row">
+          <div class="col-12">
+            <h3>Related Products</h3>
+            <div class="row">
+              {% for i in range(1,5) %}
+              <div class="col-md-3 mb-4">
+                <div class="card">
+                  <img src="https://via.placeholder.com/300x300?text=Related+Product" class="card-img-top" alt="Related Product">
+                  <div class="card-body">
+                    <h6 class="card-title">Related Product {{ i }}</h6>
+                    <p class="card-text text-primary">${{ 19.99 + i*10 }}</p>
+                    <a href="#" class="btn btn-outline-primary btn-sm">View Details</a>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// No inline scripts needed here. All functionality is in static/js/script.js.
+
+function changeImage(src) {
+    document.getElementById('mainImage').src = src;
+}
+
+function shareProduct() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ product.name }}',
+            text: 'Check out this product on E-Store!',
+            url: window.location.href
+        });
+    } else {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showAlert('Link copied to clipboard!', 'success');
+        }).catch(() => {
+            showAlert('Could not copy link to clipboard', 'warning');
+        });
+    }
+}
+</script>
+{% endblock %}

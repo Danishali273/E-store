@@ -1,0 +1,176 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Orders - Admin Panel{% endblock %}
+{% block page_title %}Orders{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Order Management</h2>
+</div>
+
+<!-- Advanced Search/Filter Form -->
+<form method="get" class="mb-4">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label">Order #</label>
+            <input type="text" name="order_number" class="form-control" placeholder="Order number" value="{{ order_number or '' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Recipient</label>
+            <input type="text" name="recipient" class="form-control" placeholder="Recipient name" value="{{ recipient or '' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All</option>
+                <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="processing" {% if status == 'processing' %}selected{% endif %}>Processing</option>
+                <option value="shipped" {% if status == 'shipped' %}selected{% endif %}>Shipped</option>
+                <option value="delivered" {% if status == 'delivered' %}selected{% endif %}>Delivered</option>
+                <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Date From</label>
+            <input type="date" name="date_from" class="form-control" value="{{ date_from or '' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Date To</label>
+            <input type="date" name="date_to" class="form-control" value="{{ date_to or '' }}">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Filter</button>
+        </div>
+    </div>
+</form>
+
+<!-- Order Statistics Cards (moved to top) -->
+{% if orders %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ orders|length }}</h3>
+                <p class="text-muted mb-0">Total Orders</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ orders|selectattr('status', 'equalto', 'delivered')|list|length }}</h3>
+                <p class="text-muted mb-0">Delivered</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-warning">{{ orders|selectattr('status', 'equalto', 'pending')|list|length }}</h3>
+                <p class="text-muted mb-0">Pending</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Order #</th>
+                        <th>Recipient/Customer</th>
+                        <th class="d-none d-lg-table-cell">Date</th>
+                        <th>Total</th>
+                        <th class="d-none d-md-table-cell">Status</th>
+                        <th class="d-none d-lg-table-cell">Payment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>
+                            <strong>{{ order.order_number }}</strong>
+                            <div class="d-lg-none">
+                                <small class="text-muted">{{ order.created_at.strftime('%Y-%m-%d %I:%M %p') }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% set customer = order.customer %}
+                            <div>
+                                <strong>{{ order.recipient_name }}</strong>
+                                <small class="text-muted">(Recipient)</small>
+                                <br>
+                                <small class="text-muted">Account: {{ customer.first_name }} {{ customer.last_name }}</small>
+                                <div class="d-md-none mt-1">
+                                    {% if order.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% elif order.status == 'processing' %}
+                                        <span class="badge bg-info">Processing</span>
+                                    {% elif order.status == 'shipped' %}
+                                        <span class="badge bg-primary">Shipped</span>
+                                    {% elif order.status == 'delivered' %}
+                                        <span class="badge bg-success">Delivered</span>
+                                    {% elif order.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            {{ order.created_at.strftime('%Y-%m-%d') }}
+                            <br>
+                            <small class="text-muted">{{ order.created_at.strftime('%I:%M %p') }}</small>
+                        </td>
+                        <td>
+                            <strong class="text-primary">Rs. {{ "%.2f"|format(order.total_amount) }}</strong>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            {% if order.status == 'pending' %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% elif order.status == 'processing' %}
+                                <span class="badge bg-info">Processing</span>
+                            {% elif order.status == 'shipped' %}
+                                <span class="badge bg-primary">Shipped</span>
+                            {% elif order.status == 'delivered' %}
+                                <span class="badge bg-success">Delivered</span>
+                            {% elif order.status == 'cancelled' %}
+                                <span class="badge bg-danger">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            <span class="badge bg-info">COD</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('admin_order_detail', order_id=order.order_id) }}" 
+                                   class="btn btn-outline-primary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary" title="Print Invoice">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-shopping-bag fa-4x text-muted mb-4"></i>
+            <h4>No orders found</h4>
+            <p class="text-muted mb-4">Orders will appear here once customers place them.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Order Statistics (moved to top) -->
+{% endblock %} 

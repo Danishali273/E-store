@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}COD Checkout - E-Store{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-shipping-fast"></i> Cash on Delivery - Shipping Details</h4>
+                </div>
+                <div class="card-body">
+                    <form id="codForm" method="POST" action="{{ url_for('process_cod_order') }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="recipient_name" class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" id="recipient_name" name="recipient_name" 
+                                       value="{{ current_user.first_name }} {{ current_user.last_name }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="recipient_phone" class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" id="recipient_phone" name="recipient_phone" 
+                                       value="{{ current_user.phone_number or '' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="recipient_email" class="form-label">Email (Optional)</label>
+                            <input type="email" class="form-control" id="recipient_email" name="recipient_email" 
+                                   value="{{ current_user.email }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="shipping_address" class="form-label">Complete Address *</label>
+                            <textarea class="form-control" id="shipping_address" name="shipping_address" 
+                                      rows="3" placeholder="House/Flat No, Street, Area, Landmark" required></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="city" class="form-label">City *</label>
+                                <input type="text" class="form-control" id="city" name="city" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="state" class="form-label">State/Province *</label>
+                                <input type="text" class="form-control" id="state" name="state" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="postal_code" class="form-label">Postal Code *</label>
+                                <input type="text" class="form-control" id="postal_code" name="postal_code" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" class="form-control" id="country" name="country" value="Pakistan" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="delivery_notes" class="form-label">Delivery Instructions (Optional)</label>
+                            <textarea class="form-control" id="delivery_notes" name="delivery_notes" 
+                                      rows="2" placeholder="Any special instructions for delivery"></textarea>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Cash on Delivery:</strong> You will pay for your order when it's delivered to your address.
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="fas fa-check-circle"></i> Place Order (COD)
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in cart_items %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <small>{{ item.product.name }}</small><br>
+                            <small class="text-muted">Qty: {{ item.item.quantity }}</small>
+                        </div>
+                        <span>Rs. {{ "%.2f"|format(item.total) }}</span>
+                    </div>
+                    {% endfor %}
+                    
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>Subtotal:</strong>
+                        <strong>Rs. {{ "%.2f"|format(total) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Tax (8%):</span>
+                        <span>Rs. {{ "%.2f"|format(total * 0.08) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Delivery:</span>
+                        <span class="text-success">Free</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total:</strong>
+                        <strong class="text-success">Rs. {{ "%.2f"|format(total * 1.08) }}</strong>
+                    </div>
+                    
+                    <div class="mt-3 p-2 bg-light rounded">
+                        <small><i class="fas fa-truck"></i> <strong>Payment Method:</strong> Cash on Delivery</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('codForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Basic validation
+    const requiredFields = ['recipient_name', 'recipient_phone', 'shipping_address', 'city', 'state', 'postal_code'];
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        const input = document.getElementById(field);
+        if (!input.value.trim()) {
+            input.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            input.classList.remove('is-invalid');
+        }
+    });
+    
+    if (!isValid) {
+        alert('Please fill in all required fields.');
+        return;
+    }
+    
+    // Submit form
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("process_cod_order") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Order placed successfully! Order ID: ' + data.order_number);
+            window.location.href = '{{ url_for("orders") }}';
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+});
+</script>
+{% endblock %}
