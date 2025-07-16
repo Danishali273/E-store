@@ -285,6 +285,15 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 1rem;
 }
 
+/* Products Grid Layout for Desktop & Tablet */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
 /* Price Styling */
 .price {
     font-size: 1.25rem;
