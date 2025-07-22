@@ -11,6 +11,16 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import re
 from dotenv import load_dotenv
 
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from oauthlib.oauth2 import WebApplicationClient
+from oauthlib.oauth2.rfc6749.errors import InsecureTransportError, OAuth2Error
+import json
+import requests
+import os
+import oauthlib
+import traceback
+
 from models import db, Customer, Admin, Product, Category, ShoppingCart, CartItem, Order, OrderItem, ProductImage
 
 # Load environment variables
@@ -25,6 +35,31 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///estore.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
+
+# For development: Allow OAuth over HTTP
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for development!
+
+# Debug OAuth configuration
+print(f"Google OAuth Configuration:")
+print(f"GOOGLE_CLIENT_ID: {'SET - ' + GOOGLE_CLIENT_ID[:5] + '...' if GOOGLE_CLIENT_ID else 'NOT SET'}")
+print(f"GOOGLE_CLIENT_SECRET: {'SET - ' + GOOGLE_CLIENT_SECRET[:5] + '...' if GOOGLE_CLIENT_SECRET else 'NOT SET'}")
+print(f"OAUTHLIB_INSECURE_TRANSPORT: {os.environ.get('OAUTHLIB_INSECURE_TRANSPORT', '0')}")
+
+# Check environment variables more thoroughly
+if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    print("WARNING: Google OAuth credentials are not properly set!")
+    print(f"Environment variables loaded: {list(os.environ.keys())}")
+    print("Make sure .env file exists and contains GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET")
+
+# OAuth 2 client setup
+client = WebApplicationClient(GOOGLE_CLIENT_ID) if GOOGLE_CLIENT_ID else None
+if not client:
+    print("Warning: Google OAuth client not initialized - missing GOOGLE_CLIENT_ID")
 
 # Session Security
 
@@ -79,6 +114,23 @@ app.config['MAIL_ASCII_ATTACHMENTS'] = False
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Helper function to check if a user is a Google user
+def is_google_user(user):
+    """Check if the user was authenticated via Google"""
+    if not user or not hasattr(user, 'is_authenticated') or not user.is_authenticated:
+        return False
+        
+    # Check for Google email domains
+    google_domains = ['gmail.com', 'googlemail.com', 'google.com']
+    user_domain = user.email.split('@')[-1].lower() if '@' in user.email else ''
+    
+    return user_domain in google_domains and user.email_verified
+
+# Add helper functions to templates
+@app.context_processor
+def inject_user_helpers():
+    return {'is_google_user': is_google_user}
 
 # Context processor to inject current year into all templates
 @app.context_processor
@@ -295,6 +347,247 @@ def resend_verification():
         return redirect(url_for('login'))
     
     return render_template('resend_verification.html')
+
+def get_google_provider_cfg():
+    try:
+        print(f"Attempting to fetch Google configuration from: {GOOGLE_DISCOVERY_URL}")
+        response = requests.get(GOOGLE_DISCOVERY_URL, timeout=10)
+        print(f"Response status code: {response.status_code}")
+        response.raise_for_status()  # Raise an exception for bad status codes
+        config = response.json()
+        print("Successfully fetched Google configuration")
+        return config
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching Google provider config: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error fetching Google provider config: {e}")
+        return None
+
+@app.route('/login/google')
+def google_login():
+    # Check if this request came from register page
+    source_page = request.args.get('source', 'login')
+    
+    if not client:
+        flash('Google OAuth is not configured. Please try regular login or registration.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+    # Get Google's provider configuration
+    google_provider_cfg = get_google_provider_cfg()
+    if not google_provider_cfg:
+        flash('Failed to fetch Google configuration. Please try again later.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+    # Get the authorization endpoint
+    authorization_endpoint = google_provider_cfg["authorization_endpoint"]
+
+    # Construct the request for Google login and scopes
+    # Add source parameter to state to remember where we came from
+    redirect_uri = url_for('google_callback', _external=True)
+    print(f"Using redirect URI: {redirect_uri}")
+    
+    try:
+        request_uri = client.prepare_request_uri(
+            authorization_endpoint,
+            redirect_uri=redirect_uri,
+            scope=["openid", "email", "profile"],
+            state=source_page  # Remember if this came from register or login
+        )
+        print(f"Redirecting to Google with URI: {request_uri}")
+        return redirect(request_uri)
+    except Exception as e:
+        print(f"Error preparing OAuth request: {e}")
+        traceback.print_exc()
+        flash('Error setting up Google authentication. Please try again.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+@app.route('/login/google/callback')
+def google_callback():
+    # Get the source page from state parameter
+    source_page = request.args.get('state', 'login')
+    print(f"Google callback called with source_page: {source_page}")
+    
+    # Check if there's an error parameter
+    error = request.args.get('error')
+    if error:
+        error_description = request.args.get('error_description', 'Unknown error')
+        print(f"OAuth Error: {error} - {error_description}")
+        flash(f'Google authentication error: {error_description}', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+    
+    if not client:
+        print("Error: Google OAuth client not configured")
+        flash('Google OAuth is not configured.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+    # Get the authorization code from Google
+    code = request.args.get("code")
+    print(f"Authorization code received: {'YES' if code else 'NO'}")
+    if not code:
+        error = request.args.get("error")
+        error_description = request.args.get("error_description")
+        print(f"Google OAuth error: {error} - {error_description}")
+        flash('Authentication failed. Please try again.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+    try:
+        print("Starting Google OAuth token exchange...")
+        
+        # Get Google's provider configuration
+        google_provider_cfg = get_google_provider_cfg()
+        if not google_provider_cfg:
+            print("Error: Failed to get Google provider configuration")
+            flash('Failed to fetch Google configuration.', 'error')
+            return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+        # Get tokens endpoint
+        token_endpoint = google_provider_cfg["token_endpoint"]
+        print(f"Token endpoint: {token_endpoint}")
+
+        # Prepare and send the token request
+        callback_uri = url_for('google_callback', _external=True)
+        print(f"Callback URI for token exchange: {callback_uri}")
+        print(f"Full request URL: {request.url}")
+        
+        try:
+            token_url, headers, body = client.prepare_token_request(
+                token_endpoint,
+                authorization_response=request.url,
+                redirect_url=callback_uri,
+                code=code
+            )
+            
+            print(f"Making token request to: {token_url}")
+            print(f"Request headers: {headers}")
+            print(f"Request body: {body}")
+            
+            token_response = requests.post(
+                token_url,
+                headers=headers,
+                data=body,
+                auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
+                timeout=10  # Add timeout for better error handling
+            )
+
+            print(f"Token response status: {token_response.status_code}")
+            print(f"Token response content: {token_response.text}")
+        except oauthlib.oauth2.rfc6749.errors.InsecureTransportError:
+            print("InsecureTransportError: OAuth2 requires HTTPS. Set OAUTHLIB_INSECURE_TRANSPORT=1 for development.")
+            flash('OAuth2 requires HTTPS. For development, restart the server with OAUTHLIB_INSECURE_TRANSPORT=1', 'error')
+            return redirect(url_for('register' if source_page == 'register' else 'login'))
+        except Exception as e:
+            print(f"Exception during token request: {e}")
+            print(f"Exception type: {type(e)}")
+            traceback.print_exc()
+            flash('Error during Google authentication. Please try again.', 'error')
+            return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+        # Check if token request was successful
+        if token_response.status_code != 200:
+            print(f"Token request failed with status {token_response.status_code}")
+            flash('Failed to authenticate with Google. Please try again.', 'error')
+            return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+        # Parse the token response
+        token_json = token_response.json()
+        print(f"Token JSON: {token_json}")
+        client.parse_request_body_response(json.dumps(token_json))
+
+        # Get user info from Google
+        userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+        print(f"Userinfo endpoint: {userinfo_endpoint}")
+        
+        try:
+            uri, headers, body = client.add_token(userinfo_endpoint)
+            print(f"Userinfo request URI: {uri}")
+            print(f"Userinfo request headers: {headers}")
+            
+            userinfo_response = requests.get(uri, headers=headers, data=body, timeout=10)
+            
+            print(f"Userinfo response status: {userinfo_response.status_code}")
+            print(f"Userinfo response content: {userinfo_response.text}")
+            
+            # Check if userinfo request was successful
+            if userinfo_response.status_code != 200:
+                print(f"Userinfo request failed with status {userinfo_response.status_code}")
+                flash('Failed to get user information from Google. Please try again.', 'error')
+                return redirect(url_for('register' if source_page == 'register' else 'login'))
+            
+            user_info = userinfo_response.json()
+            print(f"User info: {user_info}")
+            
+            # Check if email is present and verified
+            if not user_info.get("email"):
+                print("No email found in Google account info")
+                flash('Your Google account does not have an email address. Please use a different Google account.', 'error')
+                return redirect(url_for('register' if source_page == 'register' else 'login'))
+                
+            if not user_info.get("email_verified"):
+                print("Google account email is not verified")
+                flash('Your Google account email is not verified. Please verify your email with Google first.', 'error')
+                return redirect(url_for('register' if source_page == 'register' else 'login'))
+                
+            google_email = user_info["email"]
+            google_name = user_info["name"]
+            first_name = user_info.get("given_name", "")
+            last_name = user_info.get("family_name", "")
+
+            print(f"Processing user: {google_email}")
+
+            # Check if user exists
+            customer = Customer.query.filter_by(email=google_email).first()
+            if not customer:
+                print(f"Creating new customer with Google email: {google_email}")
+                # Create new customer with Google account
+                customer = Customer(
+                    email=google_email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    password_hash=generate_password_hash(secrets.token_urlsafe(32)),
+                    email_verified=True  # Auto-verify Google users
+                )
+                db.session.add(customer)
+                db.session.commit()
+                print("New customer created successfully")
+                flash('Welcome! Your Google account has been successfully registered and verified.', 'success')
+            elif not customer.email_verified:
+                print(f"Verifying existing customer with email: {google_email}")
+                # If existing unverified user, verify them
+                customer.email_verified = True
+                db.session.commit()
+                print("Customer verified successfully")
+                flash('Welcome back! Your email has been verified with Google.', 'success')
+            else:
+                print(f"Existing verified customer logging in: {google_email}")
+                # Existing verified user logging in
+                flash('Welcome back! You have successfully signed in with Google.', 'success')
+
+            print(f"Logging in customer: {customer.email}, ID: {customer.customer_id}")
+            login_user(customer)
+            print("Customer logged in successfully, redirecting to home")
+            return redirect(url_for('home'))
+            
+        except Exception as e:
+            print(f"Error processing user info: {e}")
+            traceback.print_exc()
+            flash(f'Error processing Google account: {str(e)}', 'error')
+            return redirect(url_for('register' if source_page == 'register' else 'login'))
+
+    except requests.exceptions.RequestException as e:
+        print(f"Network error in Google callback: {e}")
+        flash('Network error while connecting to Google. Please check your internet connection and try again.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+    except oauthlib.oauth2.rfc6749.errors.InsecureTransportError:
+        print("InsecureTransportError: OAuth2 requires HTTPS. Set OAUTHLIB_INSECURE_TRANSPORT=1 for development.")
+        flash('OAuth2 requires HTTPS for security. A development environment exception has been set.', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
+    except Exception as e:
+        print(f"Unexpected error in Google callback: {e}")
+        print(f"Error type: {type(e)}")
+        traceback.print_exc()
+        flash(f'Failed to log in with Google. Please try again. Error: {str(e)}', 'error')
+        return redirect(url_for('register' if source_page == 'register' else 'login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1021,11 +1314,16 @@ def edit_profile():
 @app.route('/change_password', methods=['POST'])
 @login_required
 def change_password():
-    current_password = request.form['current_password']
+    current_password = request.form.get('current_password', '')
     new_password = request.form['new_password']
     confirm_password = request.form['confirm_password']
     
-    if not check_password_hash(current_user.password_hash, current_password):
+    # Check if this is a Google-authenticated user setting a password for the first time
+    is_setting_password = 'set_password' in request.form
+    google_user = is_google_user(current_user)
+    
+    # Only check current password if not setting a new password for Google auth account
+    if not is_setting_password and not google_user and not check_password_hash(current_user.password_hash, current_password):
         flash('Current password is incorrect!', 'error')
         return redirect(url_for('edit_profile'))
     
@@ -1039,7 +1337,12 @@ def change_password():
     
     current_user.password_hash = generate_password_hash(new_password)
     db.session.commit()
-    flash('Password changed successfully!', 'success')
+    
+    if is_setting_password or google_user:
+        flash('Password set successfully! You can now login with your email and password.', 'success')
+    else:
+        flash('Password changed successfully!', 'success')
+        
     return redirect(url_for('edit_profile'))
 
 @app.route('/upload_image', methods=['POST'])

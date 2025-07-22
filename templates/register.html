@@ -12,6 +12,18 @@
                 </h4>
             </div>
             <div class="card-body">
+                <!-- Google Sign Up Button -->
+                <div class="text-center mb-4">
+                    <a href="{{ url_for('google_login', source='register') }}" class="btn btn-light border d-block mb-3" style="position: relative;">
+                        <img src="https://www.google.com/favicon.ico" alt="Google" style="width: 20px; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);">
+                        <span>Sign up with Google</span>
+                    </a>
+                    <div class="divider d-flex align-items-center my-4">
+                        <p class="text-center fw-bold mx-3 mb-0">OR</p>
+                    </div>
+                </div>
+
+                <!-- Regular Registration Form -->
                 <form method="POST">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -133,4 +145,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<style>
+.divider:after,
+.divider:before {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #eee;
+}
+</style>
 {% endblock %} 

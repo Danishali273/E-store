@@ -22,14 +22,14 @@ class Customer(UserMixin, db.Model):
     shopping_carts = db.relationship('ShoppingCart', backref='customer', lazy='dynamic', cascade='all, delete-orphan')
     orders = db.relationship('Order', backref='customer', lazy='dynamic')
     
-    def __init__(self, first_name, last_name, email, password_hash, phone_number=None, is_active=True):
+    def __init__(self, first_name, last_name, email, password_hash, phone_number=None, is_active=True, email_verified=False):
         self.first_name = first_name
         self.last_name = last_name
         self.email = email
         self.password_hash = password_hash
         self.phone_number = phone_number
         self.is_active = is_active
-        self.email_verified = False
+        self.email_verified = email_verified
 
     def get_id(self):
         return str(self.customer_id)

@@ -12,6 +12,16 @@
                 </h4>
             </div>
             <div class="card-body">
+                <!-- Google Sign In Button -->
+                <div class="text-center mb-4">
+                    <a href="{{ url_for('google_login') }}" class="btn btn-light border d-block mb-3" style="position: relative;">
+                        <img src="https://www.google.com/favicon.ico" alt="Google" style="width: 20px; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);">
+                        <span>Continue with Google</span>
+                    </a>
+                    <div class="divider d-flex align-items-center my-4">
+                        <p class="text-center fw-bold mx-3 mb-0">OR</p>
+                    </div>
+                </div>
                 <form method="POST">
                     <div class="mb-3">
                         <label for="email" class="form-label">Email Address</label>
@@ -58,4 +68,14 @@
         </div>
     </div>
 </div>
+
+<style>
+.divider:after,
+.divider:before {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #eee;
+}
+</style>
 {% endblock %} 
