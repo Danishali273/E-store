@@ -325,6 +325,57 @@ def verify_email(token):
     flash('Email verified successfully! You can now login.', 'success')
     return redirect(url_for('login'))
 
+@app.route('/verify_email_change/<token>')
+@login_required
+def verify_email_change(token):
+    customer = Customer.query.filter_by(verification_token=token).first()
+    
+    if not customer or customer.customer_id != current_user.customer_id:
+        flash('Invalid verification link!', 'error')
+        return redirect(url_for('profile'))
+    
+    if customer.token_expiry and customer.token_expiry < datetime.utcnow():
+        flash('Verification link has expired! Please try updating your email again.', 'error')
+        # Clear the pending email change
+        customer.pending_email = None
+        customer.email_verified = True  # Restore verification status
+        customer.verification_token = None
+        customer.token_expiry = None
+        db.session.commit()
+        return redirect(url_for('edit_profile'))
+    
+    if not customer.pending_email:
+        flash('No pending email change found!', 'error')
+        return redirect(url_for('profile'))
+    
+    # Update email to the new verified email
+    customer.email = customer.pending_email
+    customer.pending_email = None
+    customer.email_verified = True
+    customer.verification_token = None
+    customer.token_expiry = None
+    db.session.commit()
+    
+    flash('Email address updated successfully! Your new email has been verified.', 'success')
+    return redirect(url_for('profile'))
+
+@app.route('/cancel_email_change', methods=['POST'])
+@login_required
+def cancel_email_change():
+    if not current_user.pending_email:
+        flash('No pending email change found.', 'error')
+        return redirect(url_for('profile'))
+    
+    # Cancel the pending email change
+    current_user.pending_email = None
+    current_user.email_verified = True  # Restore verification status
+    current_user.verification_token = None
+    current_user.token_expiry = None
+    db.session.commit()
+    
+    flash('Email change cancelled. Your original email address has been restored.', 'info')
+    return redirect(url_for('edit_profile'))
+
 @app.route('/resend_verification', methods=['GET', 'POST'])
 def resend_verification():
     if request.method == 'POST':
@@ -1298,15 +1349,67 @@ def edit_profile():
         current_user.phone_number = request.form['phone_number']
         
         # Check if email is being changed
-        new_email = request.form['email']
+        new_email = request.form['email'].strip()
         if new_email != current_user.email:
-            if Customer.query.filter_by(email=new_email).first():
-                flash('Email already registered!', 'error')
+            # Validate email format
+            if not is_valid_email(new_email):
+                flash('Please enter a valid email address (e.g., user@example.com). Avoid common typos like .con', 'error')
                 return redirect(url_for('edit_profile'))
-            current_user.email = new_email
+            
+            # Check if email is already registered by another user
+            existing_customer = Customer.query.filter_by(email=new_email).first()
+            if existing_customer:
+                flash('Email already registered by another account!', 'error')
+                return redirect(url_for('edit_profile'))
+            
+            # Store the new email in a temporary field and send verification
+            current_user.pending_email = new_email
+            current_user.email_verified = False  # Mark as unverified until new email is confirmed
+            
+            # Generate verification token for new email
+            token = generate_verification_token()
+            current_user.verification_token = token
+            current_user.token_expiry = datetime.utcnow() + timedelta(hours=24)
+            
+            # Send verification email to new address
+            verification_url = url_for('verify_email_change', token=token, _external=True, _scheme='https')
+            
+            msg = Message(
+                'Verify Your New Email - E-Store',
+                recipients=[new_email],
+                body=f'''Hello {current_user.first_name},
+
+You have requested to change your email address on E-Store.
+
+Please click the following link to verify your new email address:
+{verification_url}
+
+This link will expire in 24 hours.
+
+If you didn't request this change, please ignore this email and your account will remain unchanged.
+
+Best regards,
+The E-Store Team'''
+            )
+            
+            try:
+                mail.send(msg)
+                db.session.commit()
+                flash('Profile updated! A verification email has been sent to your new email address. Please check your email and click the verification link to complete the email change.', 'warning')
+            except Exception as e:
+                print(f"Error sending verification email: {e}")
+                # Rollback the pending email change
+                current_user.pending_email = None
+                current_user.email_verified = True
+                current_user.verification_token = None
+                current_user.token_expiry = None
+                db.session.commit()
+                flash('Profile updated, but we could not send the verification email to your new address. Please try again or contact support.', 'error')
+        else:
+            # Email not changed, just update other fields
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
         
-        db.session.commit()
-        flash('Profile updated successfully!', 'success')
         return redirect(url_for('profile'))
     
     return render_template('edit_profile.html')

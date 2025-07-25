@@ -10,6 +10,7 @@ class Customer(UserMixin, db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
+    pending_email = db.Column(db.String(100))  # For email change verification
     password_hash = db.Column(db.String(255), nullable=False)
     phone_number = db.Column(db.String(20))
     email_verified = db.Column(db.Boolean, default=False)

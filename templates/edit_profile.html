@@ -50,6 +50,38 @@
             </div>
         </div>
         
+        <!-- Pending Email Change Notification -->
+        {% if current_user.pending_email %}
+        <div class="card mb-2">
+            <div class="card-header py-1 bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="fas fa-clock"></i> Pending Email Change
+                </h6>
+            </div>
+            <div class="card-body p-2">
+                <div class="alert alert-warning small mb-1">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>Email change pending:</strong> You have requested to change your email to 
+                    <strong>{{ current_user.pending_email }}</strong>
+                </div>
+                <p class="small mb-1">
+                    We've sent a verification email to <strong>{{ current_user.pending_email }}</strong>. 
+                    Please check your email and click the verification link to complete the change.
+                </p>
+                <p class="small text-muted mb-2">
+                    <i class="fas fa-info-circle"></i> 
+                    Until you verify the new email, your account will show as unverified and you may have limited access to some features.
+                </p>
+                <form method="POST" action="{{ url_for('cancel_email_change') }}" style="margin-bottom: 0;">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                            onclick="return confirm('Are you sure you want to cancel the email change? This will restore your original email address.')">
+                        <i class="fas fa-times"></i> Cancel Email Change
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Password Management Section -->
         {% if current_user.email.endswith('@gmail.com') or current_user.email.endswith('@googlemail.com') %}
         <!-- Set Password Section for Google Users -->
