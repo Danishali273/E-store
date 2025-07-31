@@ -972,6 +972,43 @@ def admin_logout():
     session.pop('admin_name', None)
     return redirect(url_for('admin_login'))
 
+@app.route('/admin/change_password', methods=['GET', 'POST'])
+@admin_required
+def admin_change_password():
+    if request.method == 'POST':
+        current_password = request.form['current_password']
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+        
+        # Get current admin
+        admin = Admin.query.get(session['admin_id'])
+        if not admin:
+            flash('Admin not found!', 'error')
+            return redirect(url_for('admin_login'))
+        
+        # Verify current password
+        if not check_password_hash(admin.password_hash, current_password):
+            flash('Current password is incorrect!', 'error')
+            return redirect(url_for('admin_change_password'))
+        
+        # Validate new password
+        if new_password != confirm_password:
+            flash('New passwords do not match!', 'error')
+            return redirect(url_for('admin_change_password'))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long!', 'error')
+            return redirect(url_for('admin_change_password'))
+        
+        # Update password
+        admin.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('admin/change_password.html')
+
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
